@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -33,16 +34,21 @@ func main() {
 	Info("XAUUSD SIGNAL BOT STARTED")
 	Info("Mode      : " + MODE)
 	Info(fmt.Sprintf("Polling   : %ds", POLLING_SECONDS))
-	Info("Session   : London–New York")
+	Info("Session   : London—New York")
 	Info("Status    : ONLINE")
 
 	// ===== TELEGRAM START NOTIF =====
 	startMsg := fmt.Sprintf(
-		"🟢 XAUUSD SIGNAL BOT ONLINE\n"+
-			"Mode    : %s\n"+
-			"Polling : %ds\n"+
-			"Session : London–New York\n"+
-			"Time    : %s UTC",
+		"🟢 XAUUSD PRO SIGNAL BOT ONLINE\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━\n"+
+			"📊 Mode    : %s\n"+
+			"⏱ Polling : %ds\n"+
+			"🌍 Session : London—New York\n"+
+			"🕐 Time    : %s UTC\n"+
+			"━━━━━━━━━━━━━━━━━━━━━━\n"+
+			"✨ Multi-Indicator Strategy Active\n"+
+			"📈 EMA • RSI • MACD • BB • ADX\n"+
+			"🎯 Dynamic SL/TP Based on ATR",
 		MODE,
 		POLLING_SECONDS,
 		time.Now().UTC().Format("2006-01-02 15:04:05"),
@@ -99,24 +105,61 @@ func main() {
 				prices = prices[len(prices)-maxBuffer:]
 			}
 
-			signal := GenerateSignal(prices)
-			if signal != "WAIT" && signal != lastSignal {
+			signal := GenerateSignalAdvanced(prices)
+			
+			if signal.Action != "WAIT" && signal.Action != lastSignal {
 				wg.Add(1)
-				go func(sig string, p float64) {
+				go func(sig SignalData) {
 					defer func() {
 						wg.Done()
 						if r := recover(); r != nil {
 							Error(fmt.Sprintf("SendTelegram signal panic: %v", r))
 						}
 					}()
-					SendTelegram(
-						fmt.Sprintf(
-							"📢 XAUUSD %s SIGNAL\nPrice: %.2f\nMode: %s",
-							sig, p, MODE,
-						),
+
+					// Format professional signal message
+					var emoji string
+					if sig.Action == "BUY" {
+						emoji = "🟢📈"
+					} else {
+						emoji = "🔴📉"
+					}
+
+					reasonsText := strings.Join(sig.Reasons, "\n")
+
+					message := fmt.Sprintf(
+						"%s XAUUSD %s SIGNAL\n"+
+							"━━━━━━━━━━━━━━━━━━━━━━\n"+
+							"💰 Entry Price : %.2f\n"+
+							"🛑 Stop Loss   : %.2f\n"+
+							"🎯 TP1         : %.2f\n"+
+							"🎯 TP2         : %.2f\n"+
+							"🎯 TP3         : %.2f\n"+
+							"━━━━━━━━━━━━━━━━━━━━━━\n"+
+							"📊 Risk/Reward : 1:%.2f\n"+
+							"💪 Confidence  : %d%%\n"+
+							"⚙️ Mode        : %s\n"+
+							"━━━━━━━━━━━━━━━━━━━━━━\n"+
+							"📌 CONFIRMATIONS:\n%s\n"+
+							"━━━━━━━━━━━━━━━━━━━━━━\n"+
+							"⏰ %s UTC",
+						emoji,
+						sig.Action,
+						sig.Entry,
+						sig.StopLoss,
+						sig.TakeProfit1,
+						sig.TakeProfit2,
+						sig.TakeProfit3,
+						sig.RiskReward,
+						sig.Confidence,
+						MODE,
+						reasonsText,
+						time.Now().UTC().Format("15:04:05"),
 					)
-				}(signal, price)
-				lastSignal = signal
+
+					SendTelegram(message)
+				}(signal)
+				lastSignal = signal.Action
 			}
 		}()
 	}

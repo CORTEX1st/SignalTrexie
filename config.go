@@ -12,5 +12,9 @@ const (
 
 	// ===== POLLING =====
 	POLLING_SECONDS = 15
-)
 
+	// ===== STRATEGY PARAMETERS =====
+	// Minimum number of confirmations needed for signal
+	// SCALPING: 3 confirmations (more aggressive)
+	// LONG: 4 confirmations (more conservative)
+)
